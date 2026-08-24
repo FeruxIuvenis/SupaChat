@@ -6,8 +6,6 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  // With Fluid compute, don't put this client in a global environment
-  // variable. Always create a new one on each request.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -16,16 +14,17 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet, headers) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set({ name, value, ...options })
+          )
+
           supabaseResponse = NextResponse.next({
             request,
           })
+
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
-          )
-          Object.entries(headers).forEach(([key, value]) =>
-            supabaseResponse.headers.set(key, value)
           )
         },
       },
@@ -33,15 +32,17 @@ export async function updateSession(request: NextRequest) {
   )
 
   const { data } = await supabase.auth.getClaims()
-
   const user = data?.claims
 
   if (!user) {
-    const allowedPaths = ['/sign-up', '/sign-in', '/about', "/verify-otp"]
-    const isAllowed = allowedPaths.some(path => request.nextUrl.pathname.startsWith(path))
-    
+    const allowedPaths = ['/sign-up', '/sign-in', '/about', '/verify-otp']
+    const isAllowed = allowedPaths.some((path) =>
+      request.nextUrl.pathname.startsWith(path)
+    )
+
     if (!isAllowed) {
       const url = request.nextUrl.clone()
+      console.log('Use redirect to /sign-in')
       url.pathname = '/sign-in'
       return NextResponse.redirect(url)
     }

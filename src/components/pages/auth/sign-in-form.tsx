@@ -1,3 +1,8 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabaseClient } from '@/lib/backend/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -7,10 +12,37 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { Info } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 const SignInForm = () => {
+    const router = useRouter()
+    const supabase = supabaseClient()
+
+    const [email, setEmail] = useState('')
+    const [password, setPassword] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+    const handleSignIn = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        setErrorMessage(null)
+
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        })
+
+        if (error) {
+            setErrorMessage(error.message)
+            setLoading(false)
+            return
+        }
+
+        router.push('/')
+    }
+
     return (
         <TooltipProvider>
             <Card className="w-full max-w-md">
@@ -21,7 +53,13 @@ const SignInForm = () => {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form className="space-y-4">
+                    <form onSubmit={handleSignIn} className="space-y-4">
+                        {errorMessage && (
+                            <div className="p-2 text-xs font-medium text-destructive bg-destructive/10 rounded">
+                                {errorMessage}
+                            </div>
+                        )}
+
                         {/* Email Field */}
                         <div>
                             <div className="flex items-center gap-1 w-fit mb-1">
@@ -43,6 +81,8 @@ const SignInForm = () => {
                             <Input
                                 id="email"
                                 type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 placeholder="example@example.com"
                                 required
                             />
@@ -74,12 +114,19 @@ const SignInForm = () => {
                                     Forgot password?
                                 </Link>
                             </div>
-                            <Input id="password" type="password" placeholder="••••••••" required />
+                            <Input
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                required
+                            />
                         </div>
 
                         <div>
-                            <Button type="submit" className="w-full">
-                                Sign In
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign In'}
                             </Button>
                         </div>
 
@@ -95,8 +142,8 @@ const SignInForm = () => {
                                 By signing in, you agree to our{' '}
                                 <Link href="/terms-of-service" className="underline font-medium">
                                     Terms of Service
-                                </Link>
-                                {' '}and{' '}
+                                </Link>{' '}
+                                and{' '}
                                 <Link href="/privacy-policy" className="underline font-medium">
                                     Privacy Policy
                                 </Link>
